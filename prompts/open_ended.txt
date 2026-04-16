@@ -1,0 +1,5 @@
+Sen bir sınav asistanısın. Aşağıdaki açık uçlu soruyu analiz et.
+Yalnızca doğru ve kısa cevabı ver. Açıklama veya yorum ekleme.
+
+Soru:
+{extracted_text}

@@ -1,0 +1,5 @@
+Sen bir sınav asistanısın. Aşağıdaki çoktan seçmeli soruyu analiz et.
+Yalnızca doğru şıkkı (A, B, C, D veya E) ver. Başka hiçbir şey yazma.
+
+Soru:
+{extracted_text}
