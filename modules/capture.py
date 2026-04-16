@@ -17,7 +17,7 @@ from typing import Callable, Optional, Tuple
 
 import mss
 from PIL import Image
-from pynput import keyboard
+from pynput import keyboard, mouse
 
 import config
 
@@ -125,7 +125,7 @@ def capture_roi() -> Optional[Image.Image]:
 
 class HotkeyListener:
     """
-    pynput ile global kısayol tuşlarını dinler.
+    pynput ile global kısayol tuşlarını ve fare butonlarını dinler.
     Thread güvenlidir; daemon thread olarak çalışır.
     """
 
@@ -137,6 +137,8 @@ class HotkeyListener:
         self._on_capture = on_capture
         self._on_toggle = on_toggle
         self._listener: Optional[keyboard.GlobalHotKeys] = None
+        self._mouse_listener: Optional[mouse.Listener] = None
+        self._roi_active = False  # ROI seçimi açıkken fare tetiklemesini engelle
 
     def _parse_hotkey(self, hotkey_str: str) -> str:
         """'ctrl+shift+s' → '<ctrl>+<shift>+s' formatına çevirir."""
@@ -150,8 +152,18 @@ class HotkeyListener:
                 formatted.append(p)
         return "+".join(formatted)
 
+    def _make_mouse_click_handler(self, target_button: mouse.Button) -> Callable:
+        def on_click(x: int, y: int, button: mouse.Button, pressed: bool) -> None:
+            if pressed and button == target_button and not self._roi_active:
+                self._roi_active = True
+                try:
+                    self._on_capture()
+                finally:
+                    self._roi_active = False
+        return on_click
+
     def start(self) -> None:
-        """Arka planda kısayol dinlemeye başlar."""
+        """Arka planda kısayol ve fare dinlemeye başlar."""
         capture_key = self._parse_hotkey(config.HOTKEY_CAPTURE)
         toggle_key = self._parse_hotkey(config.HOTKEY_TOGGLE)
 
@@ -166,7 +178,21 @@ class HotkeyListener:
         thread = threading.Thread(target=self._listener.run, daemon=True)
         thread.start()
 
+        button_name = config.MOUSE_CAPTURE_BUTTON.strip().lower()
+        if button_name:
+            try:
+                target_button = getattr(mouse.Button, button_name)
+                self._mouse_listener = mouse.Listener(
+                    on_click=self._make_mouse_click_handler(target_button)
+                )
+                self._mouse_listener.start()
+                logger.info("Fare tetikleyici aktif: %s tık → Yakalama", button_name)
+            except AttributeError:
+                logger.warning("Geçersiz MOUSE_CAPTURE_BUTTON değeri: '%s', fare dinleyici devre dışı.", button_name)
+
     def stop(self) -> None:
         if self._listener:
             self._listener.stop()
-            logger.debug("Kısayol dinleyici durduruldu.")
+        if self._mouse_listener:
+            self._mouse_listener.stop()
+        logger.debug("Kısayol dinleyici durduruldu.")

@@ -108,7 +108,7 @@ class OverlayWindow:
             bg=config.OVERLAY_BG_COLOR,   # koyu arka plan → metin düzgün render edilir
             fg=config.OVERLAY_FG_COLOR,
             font=answer_font,
-            wraplength=400,
+            wraplength=700,
             justify=tk.CENTER,
             padx=10,
             pady=6,

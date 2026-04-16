@@ -29,13 +29,14 @@ OCR_LANG: str = os.getenv("OCR_LANG", "tur+eng")
 # ─── Ekran Yakalama ──────────────────────────────────────────────────────────
 HOTKEY_CAPTURE: str = os.getenv("HOTKEY_CAPTURE", "ctrl+shift+s")
 HOTKEY_TOGGLE: str = os.getenv("HOTKEY_TOGGLE", "ctrl+shift+h")
+MOUSE_CAPTURE_BUTTON: str = os.getenv("MOUSE_CAPTURE_BUTTON", "middle")  # middle, right, x1, x2 veya "" (devre dışı)
 
 # ─── Overlay ─────────────────────────────────────────────────────────────────
 OVERLAY_ALPHA: float = float(os.getenv("OVERLAY_ALPHA", "0.82"))
-OVERLAY_FONT_SIZE: int = 7
+OVERLAY_FONT_SIZE: int = 16
 OVERLAY_TRANSPARENT_KEY: str = "#fefffe"   # root arka planı — bu renk şeffaf yapılır (siyahtan uzak)
-OVERLAY_BG_COLOR: str = "#fefffe"          # label arka planı = transparent key → görünmez
-OVERLAY_FG_COLOR: str = "#000000"          # siyah metin
+OVERLAY_BG_COLOR: str = "#1e1e1e"          # koyu gri — label arka planı görünür kalır
+OVERLAY_FG_COLOR: str = "#ffffff"          # beyaz metin — koyu arka planda okunaklı
 
 # ─── Loglama ─────────────────────────────────────────────────────────────────
 LOGS_DIR: Path = BASE_DIR / "logs"
