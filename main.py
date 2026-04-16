@@ -55,19 +55,17 @@ class ScreenAnalyzerApp:
 
         with self._pipeline_lock:
             try:
-                # 1. Ekran yakalama
+                # 1. Ekran yakalama — overlay gizlenir
                 self.logger.info("── YENİ OTURUM ──")
-                self.overlay.set_status("📷  Ekran yakalanıyor…")
+                self.overlay.hide()
                 img = capture_roi()
                 if img is None:
-                    self.overlay.set_status("İptal edildi.")
                     return
 
                 # 2. OCR
-                self.overlay.set_status("🔍  Metin tanınıyor…")
                 text = extract_text(img)
                 if not text:
-                    self.overlay.show_answer("⚠  Metin tanınamadı. Lütfen daha net bir alan seçin.")
+                    self.overlay.show_answer("⚠")
                     self.logger.warning("OCR sonucu boş döndü.")
                     return
                 self.logger.info("OCR çıktısı (%d kar.): %s", len(text), text[:120])
@@ -77,7 +75,6 @@ class ScreenAnalyzerApp:
                 self.logger.info("Soru türü: %s", "Çoktan seçmeli" if mc else "Açık uçlu")
 
                 # 4. AI engine
-                self.overlay.set_loading()
                 answer = get_answer(text, multiple_choice=mc)
                 if not answer:
                     self.overlay.show_answer("⚠  AI cevabı alınamadı.")

@@ -2,11 +2,11 @@
 modules/overlay.py — Modül 4: Overlay Arayüzü
 
 Sorumluluklar:
-  - Tkinter always-on-top şeffaf pencere
+  - Şeffaf arka planlı, always-on-top tkinter penceresi (kamufle modu)
   - Cevabı büyük puntoda gösterme
   - Pencereyi sürükle-bırak ile taşıma
+  - İçeriğe göre otomatik pencere boyutlandırma
   - Gizle / Göster (Ctrl+Shift+H kısayolu main.py'den çağrılır)
-  - Opacity ayarı
 """
 from __future__ import annotations
 
@@ -23,13 +23,18 @@ logger = logging.getLogger(__name__)
 
 class OverlayWindow:
     """
-    Şeffaf, always-on-top tkinter penceresi.
+    Şeffaf, always-on-top tkinter penceresi (kamufle/stealth modu).
+
+    - Pencere arka planı tamamen şeffaf (transparentcolor ile)
+    - Sadece metin kabarcığı görünür
+    - Pencere boyutu cevap içeriğine göre otomatik ayarlanır
+    - Başlık ve durum çubuğu yoktur (kamufle için)
 
     Kullanım:
         overlay = OverlayWindow()
         overlay.start()          # arka plan thread'de arayüzü başlatır
         overlay.show_answer("C") # ana thread'den güvenle çağrılır
-        overlay.toggle()         # gizle / göster
+        overlay.toggle()         # gizle / göster (Ctrl+Shift+H)
         overlay.stop()           # pencereyi kapat
     """
 
@@ -42,6 +47,7 @@ class OverlayWindow:
         self._thread: Optional[threading.Thread] = None
         self._drag_start_x = 0
         self._drag_start_y = 0
+        self._drag_moved: bool = False   # sürükleme mi yoksa tıklama mı?
 
     # ─── Başlat / Durdur ────────────────────────────────────────────────────
 
@@ -60,101 +66,94 @@ class OverlayWindow:
     def _run(self) -> None:
         """Tkinter event loop — ayrı thread'de çalışır."""
         self._root = tk.Tk()
-        self._root.title("AI Answer")
-
-        # Boyut ve konum
-        w, h = config.OVERLAY_WIDTH, config.OVERLAY_HEIGHT
-        self._root.geometry(f"{w}x{h}+50+50")
-        self._root.minsize(300, 80)
+        self._root.title("")
 
         # Pencere özellikleri
         self._root.attributes("-topmost", True)
         self._root.attributes("-alpha", config.OVERLAY_ALPHA)
         self._root.overrideredirect(True)   # başlık çubuğunu gizle
 
-        # Arka plan rengi
-        self._root.configure(bg=config.OVERLAY_BG_COLOR)
+        # Arka planı şeffaf yap: root key rengi + transparentcolor
+        self._root.configure(bg=config.OVERLAY_TRANSPARENT_KEY)
+        self._root.attributes("-transparentcolor", config.OVERLAY_TRANSPARENT_KEY)
+
+        # Başlangıç konumu (boyut içerik sonrası ayarlanır)
+        self._root.geometry("+50+50")
 
         self._build_ui()
         self._ready.set()
         self._root.mainloop()
 
     def _build_ui(self) -> None:
-        """Pencere içeriğini oluşturur."""
+        """Pencere içeriğini oluşturur — sadece metin kabarcığı."""
         root = self._root
 
-        # ── Başlık çubuğu (sürükle için) ──
-        title_bar = tk.Frame(root, bg="#0f0f23", height=24, cursor="fleur")
-        title_bar.pack(fill=tk.X, side=tk.TOP)
-
-        title_lbl = tk.Label(
-            title_bar,
-            text="🎓 AI Answer",
-            bg="#0f0f23",
-            fg="#7c83fd",
-            font=("Segoe UI", 9, "bold"),
-            anchor="w",
-        )
-        title_lbl.pack(side=tk.LEFT, padx=8, pady=2)
-
-        close_btn = tk.Button(
-            title_bar,
-            text="✕",
-            command=self.stop,
-            bg="#0f0f23",
-            fg="#ff6b6b",
-            font=("Segoe UI", 9),
-            bd=0,
-            padx=6,
-            cursor="hand2",
-            activebackground="#2a2a4a",
-            activeforeground="#ff6b6b",
-        )
-        close_btn.pack(side=tk.RIGHT, padx=4, pady=2)
-
-        # Sürükleme olayları
-        for widget in (title_bar, title_lbl):
-            widget.bind("<ButtonPress-1>", self._drag_start)
-            widget.bind("<B1-Motion>", self._drag_motion)
-
-        # ── Cevap etiketi ──
-        answer_font = tkfont.Font(family="Segoe UI", size=config.OVERLAY_FONT_SIZE, weight="bold")
-        self._label = tk.Label(
+        # Frame: tamamen şeffaf (arka plan yok)
+        self._frame = tk.Frame(
             root,
-            text="⌨  Ctrl+Shift+S ile ekran yakalayın…",
-            bg=config.OVERLAY_BG_COLOR,
+            bg=config.OVERLAY_TRANSPARENT_KEY,
+            padx=0,
+            pady=0,
+        )
+        self._frame.pack()
+
+        # Label: çok küçük koyu arka plan — ClearType font rendering için gerekli
+        # (şeffaf bg üzerinde Tkinter text anti-aliasing bozulur)
+        answer_font = tkfont.Font(
+            family="Segoe UI", size=config.OVERLAY_FONT_SIZE, weight="bold"
+        )
+        self._label = tk.Label(
+            self._frame,
+            text="",
+            bg=config.OVERLAY_BG_COLOR,   # koyu arka plan → metin düzgün render edilir
             fg=config.OVERLAY_FG_COLOR,
             font=answer_font,
-            wraplength=config.OVERLAY_WIDTH - 24,
+            wraplength=400,
             justify=tk.CENTER,
-            padx=12,
-            pady=12,
+            padx=10,
+            pady=6,
         )
-        self._label.pack(fill=tk.BOTH, expand=True)
+        self._label.pack()
 
-        # ── Alt durum çubuğu ──
-        status_bar = tk.Frame(root, bg="#0d0d1f", height=20)
-        status_bar.pack(fill=tk.X, side=tk.BOTTOM)
-        self._status_lbl = tk.Label(
-            status_bar,
-            text="Hazır",
-            bg="#0d0d1f",
-            fg="#555577",
-            font=("Segoe UI", 8),
-            anchor="e",
-        )
-        self._status_lbl.pack(side=tk.RIGHT, padx=8)
+        # Olaylar: frame ve label üzerinden
+        for widget in (self._frame, self._label):
+            widget.bind("<ButtonPress-1>", self._drag_start)
+            widget.bind("<B1-Motion>", self._drag_motion)
+            widget.bind("<ButtonRelease-1>", self._on_click)
+
+    # ─── İçeriğe Göre Boyutlandır ────────────────────────────────────────────
+
+    def _resize_to_content(self) -> None:
+        """Pencereyi mevcut metin içeriğine tam sığacak şekilde yeniden boyutlandırır."""
+        self._root.update_idletasks()
+        w = self._label.winfo_reqwidth()
+        h = self._label.winfo_reqheight()
+        x = self._root.winfo_x()
+        y = self._root.winfo_y()
+        self._root.geometry(f"{w}x{h}+{x}+{y}")
 
     # ─── Sürükle / Taşı ────────────────────────────────────────────────────
 
     def _drag_start(self, event: tk.Event) -> None:
         self._drag_start_x = event.x_root - self._root.winfo_x()
         self._drag_start_y = event.y_root - self._root.winfo_y()
+        self._drag_moved = False
 
     def _drag_motion(self, event: tk.Event) -> None:
+        dx = abs(event.x_root - (self._drag_start_x + self._root.winfo_x()))
+        dy = abs(event.y_root - (self._drag_start_y + self._root.winfo_y()))
+        if dx > 4 or dy > 4:
+            self._drag_moved = True
         x = event.x_root - self._drag_start_x
         y = event.y_root - self._drag_start_y
         self._root.geometry(f"+{x}+{y}")
+
+    def _on_click(self, event: tk.Event) -> None:
+        """Fare bırakıldığında: sürükleme değilse gizle."""
+        if not self._drag_moved:
+            self._root.withdraw()
+            self._visible = False
+            logger.debug("Tıklamayla gizlendi.")
 
     # ─── Güvenli UI Güncelleme ──────────────────────────────────────────────
 
@@ -171,8 +170,7 @@ class OverlayWindow:
             if self._label:
                 display = answer if answer else "⚠  Cevap alınamadı."
                 self._label.config(text=display)
-            if self._status_lbl:
-                self._status_lbl.config(text="✓ Yanıt alındı")
+                self._resize_to_content()
             if not self._visible:
                 self._root.deiconify()
                 self._visible = True
@@ -180,11 +178,19 @@ class OverlayWindow:
         logger.debug("Overlay güncellendi: %s", answer[:50] if answer else "boş")
 
     def set_status(self, message: str) -> None:
-        """Alt durum çubuğunu günceller."""
+        """Durum bilgisini etiket üzerinde kısaca gösterir."""
         def _update():
-            if self._status_lbl:
-                self._status_lbl.config(text=message)
+            if self._label:
+                self._label.config(text=message)
+                self._resize_to_content()
         self._safe_update(_update)
+
+    def hide(self) -> None:
+        """Pencereyi gizler (pipeline başlamadan önce çağrılır)."""
+        def _hide():
+            self._root.withdraw()
+            self._visible = False
+        self._safe_update(_hide)
 
     def toggle(self) -> None:
         """Pencereyi gizler veya gösterir (Ctrl+Shift+H kısayolu)."""
@@ -201,12 +207,11 @@ class OverlayWindow:
         self._safe_update(_toggle)
 
     def set_loading(self) -> None:
-        """Yükleniyor animasyonu gösterir (API isteği süresince)."""
+        """Yükleniyor durumunu gösterir (API isteği süresince)."""
         def _update():
             if self._label:
                 self._label.config(text="⏳  AI yanıtı alınıyor…")
-            if self._status_lbl:
-                self._status_lbl.config(text="İşleniyor…")
+                self._resize_to_content()
         self._safe_update(_update)
 
     @property
