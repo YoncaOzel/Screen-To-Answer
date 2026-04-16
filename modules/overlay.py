@@ -100,7 +100,7 @@ class OverlayWindow:
         # Label: çok küçük koyu arka plan — ClearType font rendering için gerekli
         # (şeffaf bg üzerinde Tkinter text anti-aliasing bozulur)
         answer_font = tkfont.Font(
-            family="Segoe UI", size=config.OVERLAY_FONT_SIZE, weight="bold"
+            family="Segoe UI", size=config.OVERLAY_FONT_SIZE
         )
         self._label = tk.Label(
             self._frame,

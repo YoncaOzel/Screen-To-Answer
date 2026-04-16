@@ -32,10 +32,10 @@ HOTKEY_TOGGLE: str = os.getenv("HOTKEY_TOGGLE", "ctrl+shift+h")
 
 # ─── Overlay ─────────────────────────────────────────────────────────────────
 OVERLAY_ALPHA: float = float(os.getenv("OVERLAY_ALPHA", "0.82"))
-OVERLAY_FONT_SIZE: int = 28
-OVERLAY_TRANSPARENT_KEY: str = "#010203"   # root arka planı — bu renk şeffaf yapılır
-OVERLAY_BG_COLOR: str = "#111111"          # içerik kabarcığı rengi (koyu, mavi değil)
-OVERLAY_FG_COLOR: str = "#f0f0f0"
+OVERLAY_FONT_SIZE: int = 7
+OVERLAY_TRANSPARENT_KEY: str = "#fefffe"   # root arka planı — bu renk şeffaf yapılır (siyahtan uzak)
+OVERLAY_BG_COLOR: str = "#fefffe"          # label arka planı = transparent key → görünmez
+OVERLAY_FG_COLOR: str = "#000000"          # siyah metin
 
 # ─── Loglama ─────────────────────────────────────────────────────────────────
 LOGS_DIR: Path = BASE_DIR / "logs"
